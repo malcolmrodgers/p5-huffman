@@ -86,12 +86,57 @@ public class HuffProcessor {
 	public void decompress(BitInputStream in, BitOutputStream out){
 
 		// remove all code when implementing decompress
-
+		HuffNode root = readTree(in);
+		HuffNode current = root;
 		while (true){
-			int val = in.readBits(BITS_PER_WORD);
-			if (val == -1) break;
+			int val = in.readBits(1);
+			if (val == -1) {
+				throw new HuffException("bad input, no PSEUDO_EOF");
+			}
+			else {
+				if (val == 0) {current = current.left;}
+				else {current = current.right;}
+
+				//break from loop if current is a leaf and == end of file
+				if (isLeaf(current)) {
+					if (current.value == PSEUDO_EOF) {
+						break;
+					}
+					else {
+						//start back after leaf
+						out.writeBits(BITS_PER_WORD, current.value);
+					}
+				}
+			}
 			out.writeBits(BITS_PER_WORD, val);
 		}
 		out.close();
+	}
+
+	private HuffNode readTree(BitInputStream in) {
+		int bit = in.readBits(1);
+
+		if (bit == -1) {
+			throw new HuffException("readBits failed");
+		}
+
+		if (bit == 0) {
+			HuffNode left = readTree(in);
+			HuffNode right = readTree(in);
+			return new HuffNode(0, 0, left, right);
+		}
+
+		else {
+			int value = in.readBits(BITS_PER_WORD + 1);
+			return new HuffNode(value, 0);
+		}
+
+	}
+
+	private boolean isLeaf(HuffNode node) {
+		if (node.left == null && node.right == null) {
+			return true;
+		}
+		return false;
 	}
 }
