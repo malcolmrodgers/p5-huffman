@@ -63,17 +63,54 @@ public class HuffProcessor {
 	 *            Buffered bit stream writing to the output file.
 	 */
 	public void compress(BitInputStream in, BitOutputStream out){
-
-
 		// remove all this code when implementing compress
-		while (true){
-			int val = in.readBits(BITS_PER_WORD);
-			if (val == -1) break;
-			out.writeBits(BITS_PER_WORD, val);
+		//int[] counts = getCounts(in);
+		HuffNode tree = makeTree(counts);
+
+		in.reset();
+		out.writeBits(BITS_PER_INT, HUFF_TREE);
+		writeTree(tree, out);
+
+		String[] encodStrings = new String[ALPH_SIZE + 1];
+		makeEncodings(tree, "", encodStrings);
+		while (true) {
+			int bits = in.readBits(BITS_PER_WORD);
+			if (bits == -1) {break;}
+
+		String code = encodStrings[bits];
+		if (code != null) {
+			out.writeBits(code.length(), Integer.parseInt(code, 2));
 		}
-		out.close();
+		}
+
+		String code = encodStrings[PSEUDO_EOF];
+		out.writeBits(code.length(), Integer.parseInt(code, 2));
 	}
 
+	private int[] getCounts(BitInputStream in) {
+		int[] counts = new int[ALPH_SIZE + 1];
+
+		while (true) {
+			int bits = in.readBits(BITS_PER_WORD);
+
+			if (bits == -1) {break;}
+			counts[bits]++;
+		}
+		
+		
+	}
+
+	private HuffNode makeTree(int [] counts) {
+		return root;
+	}
+
+	private void makeEncodings(HuffNode root, String path, String[] encodings) {
+
+	}
+
+	private void writeTree(HuffNode root, BitOutputStream out) {
+
+	}
 	/**
 	 * Decompresses a file. Output file must be identical bit-by-bit to the
 	 * original.
@@ -88,6 +125,7 @@ public class HuffProcessor {
 		// remove all code when implementing decompress
 		HuffNode root = readTree(in);
 		HuffNode current = root;
+
 		while (true){
 			int val = in.readBits(1);
 			if (val == -1) {
@@ -105,10 +143,11 @@ public class HuffProcessor {
 					else {
 						//start back after leaf
 						out.writeBits(BITS_PER_WORD, current.value);
+						current = root;
 					}
 				}
 			}
-			out.writeBits(BITS_PER_WORD, val);
+			//out.writeBits(BITS_PER_WORD, val);
 		}
 		out.close();
 	}
