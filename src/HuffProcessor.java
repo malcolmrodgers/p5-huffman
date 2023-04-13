@@ -62,9 +62,10 @@ public class HuffProcessor {
 	 * @param out
 	 *            Buffered bit stream writing to the output file.
 	 */
+
 	public void compress(BitInputStream in, BitOutputStream out){
 		// remove all this code when implementing compress
-		//int[] counts = getCounts(in);
+		int[] counts = getCounts(in);
 		HuffNode tree = makeTree(counts);
 
 		in.reset();
@@ -85,6 +86,7 @@ public class HuffProcessor {
 
 		String code = encodStrings[PSEUDO_EOF];
 		out.writeBits(code.length(), Integer.parseInt(code, 2));
+	out.close();
 	}
 
 	private int[] getCounts(BitInputStream in) {
@@ -96,21 +98,70 @@ public class HuffProcessor {
 			if (bits == -1) {break;}
 			counts[bits]++;
 		}
-		
+
+		counts[PSEUDO_EOF] = 1;
+		return counts;
 		
 	}
 
 	private HuffNode makeTree(int [] counts) {
-		return root;
+		PriorityQueue<HuffNode> queue = new PriorityQueue<>();
+
+		int num = 0;
+		for (int i : counts) {
+			if (i > 0) {
+				queue.add(new HuffNode(num, i, null, null));
+			num++;
+			}
+		}
+		queue.add(new HuffNode(PSEUDO_EOF, 1, null, null));
+
+		while (queue.size() > 1) {
+			HuffNode left = queue.remove();
+			HuffNode right = queue.remove();
+			HuffNode t = new HuffNode(0, left.weight + right.weight, left, right);
+			queue.add(t);
+		}
+
+		HuffNode node = queue.remove();
+		return node;
 	}
 
-	private void makeEncodings(HuffNode root, String path, String[] encodings) {
+	private void makeEncodings(HuffNode node, String path, String[] encodings) {
+		//base case
+		if (node == null) {return;}
 
+		//leaf case
+		if (isLeaf(node)) {
+			encodings[node.value] = path;
+			return;
+		}
+
+		//recurse (preorder)
+		else {
+			makeEncodings(node.left, path + "0", encodings);
+			makeEncodings(node.right, path + "1", encodings);
+		}
 	}
 
 	private void writeTree(HuffNode root, BitOutputStream out) {
+		//base case
+		if (root == null) {return;}
+		
+		//leaf case
+		if (isLeaf(root)) {
+			out.writeBits(1, 1);
+			out.writeBits(BITS_PER_WORD + 1, root.value);
+		}
+		//else recurse
+		else {
+			out.writeBits(1, 0);
 
+			writeTree(root.left, out);
+			writeTree(root.right, out);
+		}
 	}
+
 	/**
 	 * Decompresses a file. Output file must be identical bit-by-bit to the
 	 * original.
